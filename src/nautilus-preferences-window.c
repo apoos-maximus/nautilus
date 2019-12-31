@@ -108,11 +108,6 @@ static const char * const count_components[] =
     "count_only_this_computer_radiobutton", "count_all_files_radiobutton", "count_never_radiobutton", NULL
 };
 
-static const char * const icon_captions_components[] =
-{
-    "captions_0_combobox", "captions_1_combobox", "captions_2_combobox", NULL
-};
-
 static GtkWidget *preferences_window = NULL;
 
 static void columns_changed_callback(NautilusColumnChooser *chooser,
@@ -133,178 +128,6 @@ static void columns_changed_callback(NautilusColumnChooser *chooser,
 
     g_strfreev (visible_columns);
     g_strfreev (column_order);
-}
-
-static void free_column_names_array(GPtrArray *column_names)
-{
-    g_ptr_array_foreach (column_names, (GFunc) g_free, NULL);
-    g_ptr_array_free (column_names, TRUE);
-}
-
-static void create_icon_caption_combo_box_items(GtkComboBoxText *combo_box,
-                                                GList           *columns)
-{
-    GList *l;
-    GPtrArray *column_names;
-
-    column_names = g_ptr_array_new ();
-
-    /* Translators: this is referred to captions under icons. */
-    gtk_combo_box_text_append_text (combo_box, _("None"));
-    g_ptr_array_add (column_names, g_strdup ("none"));
-
-    for (l = columns; l != NULL; l = l->next)
-    {
-        NautilusColumn *column;
-        char *name;
-        char *label;
-
-        column = NAUTILUS_COLUMN (l->data);
-
-        g_object_get (G_OBJECT (column), "name", &name, "label", &label, NULL);
-
-        /* Don't show name here, it doesn't make sense */
-        if (!strcmp (name, "name"))
-        {
-            g_free (name);
-            g_free (label);
-            continue;
-        }
-
-        gtk_combo_box_text_append_text (combo_box, label);
-        g_ptr_array_add (column_names, name);
-
-        g_free (label);
-    }
-    g_object_set_data_full (G_OBJECT (combo_box), "column_names", column_names,
-                            (GDestroyNotify) free_column_names_array);
-}
-
-static void icon_captions_changed_callback(GtkComboBox *widget,
-                                           gpointer     user_data)
-{
-    GPtrArray *captions;
-    GtkBuilder *builder;
-    int i;
-
-    builder = GTK_BUILDER (user_data);
-
-    captions = g_ptr_array_new ();
-
-    for (i = 0; icon_captions_components[i] != NULL; i++)
-    {
-        GtkWidget *combo_box;
-        int active;
-        GPtrArray *column_names;
-        char *name;
-
-        combo_box = GTK_WIDGET (
-            gtk_builder_get_object (builder, icon_captions_components[i]));
-        active = gtk_combo_box_get_active (GTK_COMBO_BOX (combo_box));
-
-        column_names = g_object_get_data (G_OBJECT (combo_box), "column_names");
-
-        name = g_ptr_array_index (column_names, active);
-        g_ptr_array_add (captions, name);
-    }
-    g_ptr_array_add (captions, NULL);
-
-    g_settings_set_strv (nautilus_icon_view_preferences,
-                         NAUTILUS_PREFERENCES_ICON_VIEW_CAPTIONS,
-                         (const char **) captions->pdata);
-    g_ptr_array_free (captions, TRUE);
-}
-
-static void update_caption_combo_box(GtkBuilder *builder,
-                                     const char *combo_box_name,
-                                     const char *name)
-{
-    GtkWidget *combo_box;
-    int i;
-    GPtrArray *column_names;
-
-    combo_box = GTK_WIDGET (gtk_builder_get_object (builder, combo_box_name));
-
-    g_signal_handlers_block_by_func (
-        combo_box, G_CALLBACK (icon_captions_changed_callback), builder);
-
-    column_names = g_object_get_data (G_OBJECT (combo_box), "column_names");
-
-    for (i = 0; i < column_names->len; ++i)
-    {
-        if (!strcmp (name, g_ptr_array_index (column_names, i)))
-        {
-            gtk_combo_box_set_active (GTK_COMBO_BOX (combo_box), i);
-            break;
-        }
-    }
-
-    g_signal_handlers_unblock_by_func (
-        combo_box, G_CALLBACK (icon_captions_changed_callback), builder);
-}
-
-static void update_icon_captions_from_settings(GtkBuilder *builder)
-{
-    char **captions;
-    int i, j;
-
-    captions = g_settings_get_strv (nautilus_icon_view_preferences,
-                                    NAUTILUS_PREFERENCES_ICON_VIEW_CAPTIONS);
-    if (captions == NULL)
-    {
-        return;
-    }
-
-    for (i = 0, j = 0; icon_captions_components[i] != NULL; i++)
-    {
-        char *data;
-
-        if (captions[j])
-        {
-            data = captions[j];
-            ++j;
-        }
-        else
-        {
-            data = "none";
-        }
-
-        update_caption_combo_box (builder, icon_captions_components[i], data);
-    }
-
-    g_strfreev (captions);
-}
-
-static void
-nautilus_preferences_window_setup_icon_caption_page (GtkBuilder *builder)
-{
-    GList *columns;
-    int i;
-    gboolean writable;
-
-    writable = g_settings_is_writable (nautilus_icon_view_preferences,
-                                       NAUTILUS_PREFERENCES_ICON_VIEW_CAPTIONS);
-
-    columns = nautilus_get_common_columns ();
-
-    for (i = 0; icon_captions_components[i] != NULL; i++)
-    {
-        GtkWidget *combo_box;
-
-        combo_box = GTK_WIDGET (
-            gtk_builder_get_object (builder, icon_captions_components[i]));
-
-        create_icon_caption_combo_box_items (GTK_COMBO_BOX_TEXT (combo_box), columns);
-        gtk_widget_set_sensitive (combo_box, writable);
-
-        g_signal_connect_data (
-            combo_box, "changed", G_CALLBACK (icon_captions_changed_callback),
-            g_object_ref (builder), (GClosureNotify) g_object_unref, 0);
-    }
-
-    nautilus_column_list_free (columns);
-
-    update_icon_captions_from_settings (builder);
 }
 
 static void set_columns_from_settings(NautilusColumnChooser *chooser)
@@ -503,7 +326,7 @@ static void nautilus_preferences_window_setup(GtkBuilder *builder,
                             NAUTILUS_PREFERENCES_FILE_THUMBNAIL_LIMIT);
 
     nautilus_preferences_window_setup_thumbnail_limit_formatting (builder);
-    nautilus_preferences_window_setup_icon_caption_page (builder);
+    //nautilus_preferences_window_setup_icon_caption_page (builder);
     nautilus_preferences_window_setup_list_column_page (builder);
 
     /* UI callbacks */
