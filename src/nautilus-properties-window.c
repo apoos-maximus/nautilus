@@ -2495,34 +2495,6 @@ append_directory_contents_fields (NautilusPropertiesWindow *window,
 }
 
 static GtkWidget *
-create_page_with_box (GtkNotebook    *notebook,
-                      GtkOrientation  orientation,
-                      const gchar    *title,
-                      const gchar    *help_uri)
-{
-    GtkWidget *box;
-
-    g_assert (GTK_IS_NOTEBOOK (notebook));
-    g_assert (title != NULL);
-
-    box = gtk_box_new (orientation, 0);
-    gtk_widget_show (box);
-    gtk_container_set_border_width (GTK_CONTAINER (box), 12);
-    if (orientation == GTK_ORIENTATION_HORIZONTAL)
-    {
-        gtk_box_set_spacing (GTK_BOX (box), 12);
-    }
-    gtk_notebook_append_page (notebook, box, gtk_label_new (title));
-    gtk_container_child_set (GTK_CONTAINER (notebook),
-                             box,
-                             "tab-expand", TRUE,
-                             NULL);
-    g_object_set_data_full (G_OBJECT (box), "help-uri", g_strdup (help_uri), g_free);
-
-    return box;
-}
-
-static GtkWidget *
 append_blank_row (GtkGrid *grid)
 {
     return GTK_WIDGET (attach_title_field (grid, ""));
@@ -3160,7 +3132,7 @@ create_basic_page (NautilusPropertiesWindow *window)
                              NULL);
     g_object_set_data_full (G_OBJECT (hbox), "help-uri", g_strdup ("help:gnome-help/nautilus-file-properties-basic"), g_free);
 
-    /* Icon pixmap */   //obtain image-widget-from-builder
+    /* Icon pixmap */   /*obtain image-widget-from-builder */
     image_box = GTK_WIDGET (gtk_builder_get_object (basic_page_builder, "image_box"));
     icon_pixmap_widget = create_image_widget (
         window, should_show_custom_icon_buttons (window));
@@ -4706,20 +4678,14 @@ create_permissions_page (NautilusPropertiesWindow *window)
     GtkBuilder *permissions_page_builder;
 
     permissions_page_builder = gtk_builder_new_from_resource ("/org/gnome/nautilus/ui/nautilus-file-properties-permissions-page.ui");
-    vbox = GTK_WIDGET (gtk_builder_get_object (permissions_page_builder,"vbox"));
-    gtk_notebook_append_page (window->notebook, vbox, gtk_label_new(_("Permissions")));
+    vbox = GTK_WIDGET (gtk_builder_get_object (permissions_page_builder, "vbox"));
+    gtk_notebook_append_page (window->notebook, vbox, gtk_label_new (_("Permissions")));
     gtk_container_child_set (GTK_CONTAINER (window->notebook),
                              vbox,
                              "tab-expand", TRUE,
                              NULL);
     g_object_set_data_full (G_OBJECT (vbox), "help-uri", g_strdup ("help:gnome-help/nautilus-file-properties-permissions"), g_free);
 
-/*
-    vbox = create_page_with_box (window->notebook,
-                                 GTK_ORIENTATION_VERTICAL,
-                                 _("Permissions"),
-                                 "help:gnome-help/nautilus-file-properties-permissions");
-*/
     file_list = window->original_files;
 
     window->initial_permissions = NULL;
@@ -4736,12 +4702,7 @@ create_permissions_page (NautilusPropertiesWindow *window)
                 _("You are not the owner, so you cannot change these permissions."));
         }
 
-        page_grid = GTK_GRID (create_grid_with_standard_properties ());
-
-        gtk_widget_show (GTK_WIDGET (page_grid));
-        gtk_box_pack_start (GTK_BOX (vbox),
-                            GTK_WIDGET (page_grid),
-                            TRUE, TRUE, 0);
+        page_grid = GTK_GRID (gtk_builder_get_object (permissions_page_builder, "standard_grid"));
 
         create_simple_permissions (window, page_grid);
 
